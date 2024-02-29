@@ -51,3 +51,13 @@ Project Plan
       - Rehearse the presentation and prepare for Q&A.
     11th Mar (Mon):
       - Present the final project to the class.
+
+
+Requirements
+To set up your environment and install the necessary packages, run the following command:
+
+
+
+
+
+Folder Structure
