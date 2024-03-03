@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 6
+names: ['Hi-Vis Jacket', 'helmet', 'mask', 'no -hi-vis jacket', 'no-helmet', 'no-mask']
+
+roboflow:
+  workspace: sindhu
+  project: personal_protective_equipment_detection
+  version: 4
+  license: Public Domain
+  url: https://universe.roboflow.com/sindhu/personal_protective_equipment_detection/dataset/4
