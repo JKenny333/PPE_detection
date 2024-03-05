@@ -5,10 +5,18 @@ from ultralytics import YOLO
 import cv2
 import cvzone
 import math
+import os
 
-small_model_path = "..models/small_yolo_model/ppe_s.pt"
-medium_model_path = "..models/medium_yolo_model/ppe_m.pt"
-large_model_path = "..models/large_yolo_model/ppe_l.pt"
+# Initialize session state
+if 'stop_feed' not in st.session_state:
+    st.session_state['stop_feed'] = False
+
+st.write("Current Directory:", os.getcwd())
+
+
+small_model_path = "/Users/jameskenny/Documents/GitHub/Ironhack/PPE_detection/models/small_yolo_model/ppe_s.pt"
+medium_model_path = "/Users/jameskenny/Documents/GitHub/Ironhack/PPE_detection/models/medium_yolo_model/ppe_m.pt"
+large_model_path = "/Users/jameskenny/Documents/GitHub/Ironhack/PPE_detection/models/large_yolo_model/ppe_l.pt"
 
 # Function to process the frame
 def process_frame(frame, model_path):
@@ -42,35 +50,38 @@ def process_frame(frame, model_path):
                 cvzone.putTextRect(frame, f'{class_name} {conf}', (x1, max(35, y1)), scale=0.85, thickness=1, colorB=color, colorT=(0, 0, 0), colorR=color, offset=2)
     return frame
 
-# Streamlit UI
+# Button for stopping the webcam feed
+def stop_feed():
+    st.session_state['stop_feed'] = True
+
+# Streamlit UI elements
 st.title("PPE Detection Live Feed")
 
 # Create a placeholder to update the frame in the app
 frame_placeholder = st.empty()
 
+st.write("Current Directory:", os.getcwd())
+
+# Button for stopping the webcam feed
+st.button('Stop the feed', on_click=stop_feed)
+
 # Open the default webcam
 cap = cv2.VideoCapture(0)
 
-# Check if the webcam is opened correctly
-if not cap.isOpened():
-    raise IOError("Cannot open webcam")
-
-# Loop to capture and display frames
-while True:
+# Main loop
+while not st.session_state['stop_feed']:
     ret, frame = cap.read()
     if not ret:
+        st.write("Failed to capture image")
         break
 
-    # Process the frame with your PPE detection model
-    processed_frame = process_frame(frame, model_path)
+    # Process the frame with PPE detection model
+    processed_frame = process_frame(frame, small_model_path)
 
     # Display the processed frame in the Streamlit app
     frame_placeholder.image(processed_frame, channels="BGR")
 
-    # Break the loop if 'q' is pressed (This won't work in Streamlit, but kept for completeness)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# Release the webcam and close OpenCV windows
+# Cleanup
 cap.release()
 cv2.destroyAllWindows()
+st.write('Feed stopped')
