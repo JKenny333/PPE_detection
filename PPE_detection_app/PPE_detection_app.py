@@ -8,6 +8,7 @@ import cv2
 import cvzone
 import math
 import os
+import time
 
 #=====================================================================================================================
 #File paths
@@ -48,6 +49,8 @@ if 'class_info' not in st.session_state:  # Check if the class info is already l
             'type': 'object'}
     }
 
+if 'frame_rate' not in st.session_state:
+    st.session_state['frame_rate'] = 0  # Variable to store current frame's compliance
 if 'historical_compliance' not in st.session_state:
     st.session_state['historical_compliance'] = []  # List to store historical compliance percentages
 if 'current_compliance' not in st.session_state:
@@ -76,24 +79,33 @@ def stop_camera():
         st.session_state['camera_started'] = False
         st.success("Camera stopped.")
 
-# Function to process the frame
 def process_frame(frame, model, class_info):
-    results = model(frame, stream=True)  # Use the model passed as a parameter
+    positive_ppe_count = 0
+    violation_count = 0
+    results = model(frame, stream=True)
     for r in results:
         boxes = r.boxes
         for box in boxes:
             cls = int(box.cls[0])
-            # Use the class_info parameter to check inclusion status
             if class_info[cls]['include']:
-                x1, y1, x2, y2 = [int(coord) for coord in box.xyxy[0]]
                 conf = math.ceil(box.conf[0] * 100) / 100
                 if conf > 0.3:
-                    class_name = class_info[cls]['class_name']
-                    color = class_info[cls]['color']
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
-                    cvzone.putTextRect(frame, f'{class_name} {conf}', (x1, max(35, y1)), scale=0.85, thickness=1, colorB=color, colorT=(0, 0, 0), colorR=color, offset=2)
+                    if class_info[cls]['type'] == 'ppe':
+                        positive_ppe_count += 1
+                    elif class_info[cls]['type'] == 'violation':
+                        violation_count += 1
+                    # Drawing the box remains the same
+    # Calculate compliance for the current frame
+    total_detections = positive_ppe_count + violation_count
+    compliance = (positive_ppe_count / total_detections) * 100 if total_detections > 0 else 100
+    st.session_state['current_compliance'] = compliance
     return frame
 
+def update_historical_compliance(current_compliance):
+    st.session_state['historical_compliance'].append(current_compliance)
+    # Assume 10 frames per second as an example, adjust based on your actual frame rate
+    if len(st.session_state['historical_compliance']) > 300:  # 30 seconds * 10 frames per second
+        st.session_state['historical_compliance'].pop(0)
 
 
 #======================================================================================================================
@@ -172,9 +184,18 @@ for class_id, info in st.session_state['class_info'].items():
             st.session_state['class_info'][4]['include'] = include
 #======================================================================================================================
 #Analytics
+st.metric(label="System Frame Rate", value=f"{st.session_state['frame_rate']} fps")
+
+st.metric(label="Current PPE Compliance", value=f"{st.session_state['current_compliance']:.2f}%")
+#st.metric(label="Historical PPE Compliance", value=f"{st.session_state['historical_compliance']:.2f}%")
+
+st.line_chart(st.session_state['historical_compliance'])
+
 
 #======================================================================================================================
 # Main loop for frame processing
+start_time = time.time()
+frame_count = 0
 if st.session_state.get('camera_started', False):
     while True:
         ret, frame = st.session_state['cap'].read()
@@ -188,6 +209,17 @@ if st.session_state.get('camera_started', False):
 
         # Display the processed frame in the Streamlit app
         frame_placeholder.image(processed_frame, channels="BGR")
+
+        frame_count += 1
+        if frame_count % 100 == 0:
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            st.session_state['frame_rate'] = frame_count / elapsed_time
+            # Reset counters
+            start_time = time.time()
+            frame_count = 0
+
+        update_historical_compliance(st.session_state['current_compliance'])
 
         # Check if the stop button has been pressed
         if stop_button:
