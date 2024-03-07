@@ -70,7 +70,7 @@ if 'class_info' not in st.session_state:  # Check if the class info is already l
     }
 
 if 'frame_rate' not in st.session_state:
-    st.session_state['frame_rate'] = 0  # Variable to store current frame's compliance
+    st.session_state['frame_rate'] = 0
 if 'historical_compliance' not in st.session_state:
     st.session_state['historical_compliance'] = []  # List to store historical compliance percentages
 if 'current_compliance' not in st.session_state:
@@ -108,13 +108,17 @@ def process_frame(frame, model, class_info):
         for box in boxes:
             cls = int(box.cls[0])
             if class_info[cls]['include']:
+                x1, y1, x2, y2 = [int(coord) for coord in box.xyxy[0]]
                 conf = math.ceil(box.conf[0] * 100) / 100
                 if conf > 0.3:
                     if class_info[cls]['type'] == 'ppe':
                         positive_ppe_count += 1
                     elif class_info[cls]['type'] == 'violation':
                         violation_count += 1
-                    # Drawing the box remains the same
+                    class_name = class_info[cls]['class_name']
+                    color = class_info[cls]['color']
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
+                    cvzone.putTextRect(frame, f'{class_name} {conf}', (x1, max(35, y1)), scale=0.85, thickness=1, colorB=color, colorT=(0, 0, 0), colorR=color, offset=2)
     # Calculate compliance for the current frame
     total_detections = positive_ppe_count + violation_count
     compliance = (positive_ppe_count / total_detections) * 100 if total_detections > 0 else 100
