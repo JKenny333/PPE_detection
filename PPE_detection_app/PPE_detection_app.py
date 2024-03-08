@@ -18,6 +18,10 @@ model_path_s = "/Users/jameskenny/Documents/GitHub/Ironhack/PPE_detection/models
 model_path_m = "/Users/jameskenny/Documents/GitHub/Ironhack/PPE_detection/models/medium_yolo_model/ppe_m.pt"
 model_path_l = "/Users/jameskenny/Documents/GitHub/Ironhack/PPE_detection/models/large_yolo_model/ppe_l.pt"
 
+color_ppe = (87, 179, 7)
+color_violation = (43, 2, 245)
+color_object = (232, 207, 84)
+
 # =====================================================================================================================
 # Initializing session states
 # Initialize the camera and model paths in session state if not already present
@@ -38,23 +42,23 @@ if 'model' not in st.session_state:  # Check if the model is already loaded
 
 if 'class_info' not in st.session_state:  # Check if the class info is already loaded
     st.session_state['class_info'] = {
-        0: {'class_name': 'Hardhat', 'color': (136, 242, 7), 'include': True, 'positive_class': True, 'type': 'ppe'},
-        1: {'class_name': 'Mask', 'color': (136, 242, 7), 'include': True, 'positive_class': True, 'type': 'ppe'},
-        2: {'class_name': 'NO-Hardhat', 'color': (70, 7, 242), 'include': True, 'positive_class': False,
+        0: {'class_name': 'Hardhat', 'include': True, 'positive_class': True, 'type': 'ppe'},
+        1: {'class_name': 'Mask', 'include': True, 'positive_class': True, 'type': 'ppe'},
+        2: {'class_name': 'NO-Hardhat', 'include': True, 'positive_class': False,
             'type': 'violation'},
-        3: {'class_name': 'NO-Mask', 'color': (70, 7, 242), 'include': True, 'positive_class': False,
+        3: {'class_name': 'NO-Mask', 'include': True, 'positive_class': False,
             'type': 'violation'},
-        4: {'class_name': 'NO-Safety Vest', 'color': (70, 7, 242), 'include': True, 'positive_class': False,
+        4: {'class_name': 'NO-Safety Vest', 'include': True, 'positive_class': False,
             'type': 'violation'},
-        5: {'class_name': 'Person', 'color': (255, 238, 82), 'include': True, 'positive_class': True,
+        5: {'class_name': 'Person', 'include': True, 'positive_class': True,
             'type': 'object'},
-        6: {'class_name': 'Safety Cone', 'color': (255, 255, 0), 'include': True, 'positive_class': True,
+        6: {'class_name': 'Safety Cone', 'include': False, 'positive_class': True,
             'type': 'object'},
-        7: {'class_name': 'Safety Vest', 'color': (136, 242, 7), 'include': True, 'positive_class': True,
+        7: {'class_name': 'Safety Vest', 'include': True, 'positive_class': True,
             'type': 'ppe'},
-        8: {'class_name': 'machinery', 'color': (255, 105, 180), 'include': True, 'positive_class': True,
+        8: {'class_name': 'machinery', 'include': False, 'positive_class': True,
             'type': 'object'},
-        9: {'class_name': 'vehicle', 'color': (255, 105, 180), 'include': True, 'positive_class': True,
+        9: {'class_name': 'vehicle', 'include': False, 'positive_class': True,
             'type': 'object'}
     }
 
@@ -117,11 +121,13 @@ def process_frame(frame, model, confidence_threshold, class_info):
                 conf = math.ceil(box.conf[0] * 100) / 100
                 if class_info[cls]['type'] == 'ppe':
                     positive_ppe_count += 1
+                    color = color_ppe
                 elif class_info[cls]['type'] == 'violation':
                     violation_count += 1
+                    color = color_violation
+                else:
+                    color = color_object
                 class_name = class_info[cls]['class_name']
-                color = class_info[cls]['color']
-
                 # cvzone bounding box
                 w, h = x2 - x1, y2 - y1  # set up for cvzone bounding boxes
                 # Add a rectangle with styled corners to the image
@@ -130,8 +136,8 @@ def process_frame(frame, model, confidence_threshold, class_info):
                     (x1, y1, w, h),  # The position and dimensions of the rectangle (x, y, width, height)
                     l=30,  # Length of the corner edges
                     t=5,  # Thickness of the corner edges
-                    rt=0,  # Thickness of the rectangle
-                    colorR=(255, 0, 255),  # Color of the rectangle
+                    rt=1,  # Thickness of the rectangle
+                    colorR=(166, 166, 166),  # Color of the rectangle
                     colorC=color  # Color of the corner edges
                 )
                 # cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
@@ -141,15 +147,17 @@ def process_frame(frame, model, confidence_threshold, class_info):
     total_detections = positive_ppe_count + violation_count
     compliance = (positive_ppe_count / total_detections) * 100 if total_detections > 0 else 100
     st.session_state['current_compliance'] = compliance
+    compliance_placeholder.metric(label="Current PPE Compliance", value=f"{st.session_state['current_compliance']:.0f}%")
     return frame
 
 
-def update_historical_compliance(current_compliance):
-    st.session_state['historical_compliance'].append(current_compliance)
-    # Assume 10 frames per second as an example, adjust based on your actual frame rate
-    if len(st.session_state['historical_compliance']) > 300:  # 30 seconds * 10 frames per second
+def update_historical_compliance(current_compliance, time_period, fps):
+    st.session_state['historical_compliance'].append(current_compliance) #add latest compliance instance to list
+    list_length = len(st.session_state['historical_compliance']) # calculating length of the list
+    if list_length > time_period * fps:
         st.session_state['historical_compliance'].pop(0)
-
+    historical_compliance = sum(st.session_state['historical_compliance']) / list_length # calculating average of total list
+    return historical_compliance
 
 # ======================================================================================================================
 # Main page UI
@@ -159,6 +167,14 @@ def update_historical_compliance(current_compliance):
 
 # Camera feed
 frame_placeholder = st.empty()
+
+fps_placeholder = st.empty()
+
+compliance_placeholder = st.empty()
+
+hist_comp_placeholder = st.empty()
+
+comp_line_chart_placeholder = st.empty()
 
 # ======================================================================================================================
 # Sidebar UI
@@ -199,7 +215,6 @@ elif selected_model == 'YOLO v8 Medium':
 else:
     st.session_state['model'] = load_model(model_path_s)
 
-# conf_options = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 st.session_state['confidence_threshold'] = st.sidebar.slider('Select detection confidence threshold:', 0.25, 0.9, 0.55)
 
 # User input for selecting classes to included
@@ -238,12 +253,7 @@ for class_id, info in st.session_state['class_info'].items():
 # Analytics
 
 
-st.metric(label="System Frame Rate", value=f"{st.session_state['frame_rate']} fps")
 
-st.metric(label="Current PPE Compliance", value=f"{st.session_state['current_compliance']:.2f}%")
-# st.metric(label="Historical PPE Compliance", value=f"{st.session_state['historical_compliance']:.2f}%")
-
-st.line_chart(st.session_state['historical_compliance'])
 
 # ======================================================================================================================
 # Main loop for frame processing
@@ -265,7 +275,7 @@ if st.session_state.get('camera_started', False):
         frame_placeholder.image(processed_frame, channels="BGR")
 
         frame_count += 1
-        if frame_count % 100 == 0:
+        if frame_count % 10 == 0:
             end_time = time.time()
             elapsed_time = end_time - start_time
             st.session_state['frame_rate'] = frame_count / elapsed_time
@@ -273,7 +283,13 @@ if st.session_state.get('camera_started', False):
             start_time = time.time()
             frame_count = 0
 
-        update_historical_compliance(st.session_state['current_compliance'])
+
+
+        fps_placeholder.metric(label="Latency", value=f"{st.session_state['frame_rate']:.1f} fps")
+
+        historical_compliance = update_historical_compliance(st.session_state['current_compliance'], 30, st.session_state['frame_rate'])
+        hist_comp_placeholder.metric(label="Historical PPE Compliance", value=f"{historical_compliance:.0f}%")
+        comp_line_chart_placeholder.line_chart(st.session_state['historical_compliance'])
 
         # Check if the stop button has been pressed
         if stop_button:
