@@ -70,6 +70,8 @@ if 'current_compliance' not in st.session_state:
     st.session_state['current_compliance'] = 0  # Variable to store current frame's compliance
 if 'confidence_threshold' not in st.session_state:
     st.session_state['confidence_threshold'] = 0.55  # Variable to store current frame's compliance
+if 'resolution' not in st.session_state:
+    st.session_state['resolution'] = {'width': 1280, 'height': 720}
 
 
 # ======================================================================================================================
@@ -87,8 +89,8 @@ def load_model(model_path):
 def start_camera():
     if st.session_state['cap'] is None:
         st.session_state['cap'] = cv2.VideoCapture(st.session_state['camera_index'])  # Start the camera
-        st.session_state['cap'].set(3, 1280)  # Set the width to 1280
-        st.session_state['cap'].set(4, 720)  # Set the height to 720
+        st.session_state['cap'].set(3, st.session_state['resolution']['width'])  # Set the width to 1280
+        st.session_state['cap'].set(4, st.session_state['resolution']['height'])  # Set the height to 720
         st.session_state['camera_started'] = True
 
 
@@ -199,6 +201,12 @@ with col5:
 with col6:
     switch_button = st.button('Switch Camera', on_click=switch_camera)
 
+# resolution selector
+resolution_options = ['1280 x 720', '1920 x 1080']
+resolution = st.sidebar.selectbox('Select camera resolution:', resolution_options, index=0)
+if resolution == '1280 x 720':
+
+
 # User input for selecting model
 model_options = ['YOLO v8 Small', 'YOLO v8 Medium', 'YOLO v8 Large']
 st.sidebar.subheader('Object detection model')
@@ -275,7 +283,7 @@ if st.session_state.get('camera_started', False):
         frame_placeholder.image(processed_frame, channels="BGR")
 
         frame_count += 1
-        if frame_count % 10 == 0:
+        if frame_count % 15 == 0:
             end_time = time.time()
             elapsed_time = end_time - start_time
             st.session_state['frame_rate'] = frame_count / elapsed_time
