@@ -9,6 +9,8 @@ import cvzone
 import math
 import os
 import time
+from st_circular_progress import CircularProgress
+import plotly.graph_objects as go
 
 # =====================================================================================================================
 # File paths
@@ -149,7 +151,8 @@ def process_frame(frame, model, confidence_threshold, class_info):
     total_detections = positive_ppe_count + violation_count
     compliance = (positive_ppe_count / total_detections) * 100 if total_detections > 0 else 100
     st.session_state['current_compliance'] = compliance
-    compliance_placeholder.metric(label="Current PPE Compliance", value=f"{st.session_state['current_compliance']:.0f}%")
+    compliance_value_placeholder.metric(label="PPE Compliance (Real-Time)", value=f"{st.session_state['current_compliance']:.0f}%")
+    compliance_placeholder.progress(st.session_state['current_compliance']/100)
     return frame
 
 
@@ -166,12 +169,22 @@ def update_historical_compliance(current_compliance, time_period, fps):
 
 
 # st.header("PPE Compliance Monitoring System")
+# Analytics title
+st.markdown(
+    "<h1 style='text-align: right; color: #FFC501; font-size: 35px; font-weight: bold;'>PPE Compliance Live Feed</h1>",
+    unsafe_allow_html=True)
 
 # Camera feed
 frame_placeholder = st.empty()
 
+# Analytics title
+st.markdown(
+    "<h1 style='text-align: right; color: #FFC501; font-size: 35px; font-weight: bold;'>Analytics</h1>",
+    unsafe_allow_html=True)
+
 fps_placeholder = st.empty()
 
+compliance_value_placeholder = st.empty()
 compliance_placeholder = st.empty()
 
 hist_comp_placeholder = st.empty()
@@ -202,9 +215,12 @@ with col6:
     switch_button = st.button('Switch Camera', on_click=switch_camera)
 
 # resolution selector
-resolution_options = ['1280 x 720', '1920 x 1080']
-resolution = st.sidebar.selectbox('Select camera resolution:', resolution_options, index=0)
-if resolution == '1280 x 720':
+resolution_options = ['640 x 360', '1280 x 720', '1920 x 1080']
+resolution = st.sidebar.selectbox('Select camera resolution:', resolution_options, index=1)
+# Split the resolution string into width and height integers
+width, height = map(int, resolution.split(' x '))
+st.session_state['resolution']['width'] = width
+st.session_state['resolution']['height'] = height
 
 
 # User input for selecting model
@@ -222,8 +238,8 @@ elif selected_model == 'YOLO v8 Medium':
     st.session_state['model'] = load_model(model_path_m)
 else:
     st.session_state['model'] = load_model(model_path_s)
-
-st.session_state['confidence_threshold'] = st.sidebar.slider('Select detection confidence threshold:', 0.25, 0.9, 0.55)
+#confidence threshold
+st.session_state['confidence_threshold'] = st.sidebar.slider('Select detection confidence threshold:', 0.25, 0.9, 0.7)
 
 # User input for selecting classes to included
 # Sidebar header for user input

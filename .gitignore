@@ -1,2 +1,3 @@
 
 models/large_yolo_model/ppe_l.onnx
+models/large_yolo_model/ppe_l.torchscript

@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['Hardhat', 'Mask', 'Person', 'Safety Vest']
+
+roboflow:
+  workspace: ironhack-2oxw3
+  project: eagleeye-ppe-detector
+  version: 2
+  license: Public Domain
+  url: https://universe.roboflow.com/ironhack-2oxw3/eagleeye-ppe-detector/dataset/2
